@@ -45,25 +45,12 @@ example_phrases = {
 def load_model():
     try:
         # Charger le modèle depuis Hugging Face Hub
-        model_name = "camembert-base"
-        st.write(f"Chargement du modèle depuis Hugging Face Hub: {model_name}")
-        
-        # Charger le modèle
-        st.write("Chargement du modèle...")
-        model = CamembertForSequenceClassification.from_pretrained(model_name, num_labels=3)
-        st.write("Modèle chargé avec succès!")
-        
-        # Charger le tokenizer
-        st.write("Chargement du tokenizer...")
+        model_name = "mamediarraStci2/camembert-sentiment"  # Notre modèle entraîné
+        model = CamembertForSequenceClassification.from_pretrained(model_name)
         tokenizer = CamembertTokenizer.from_pretrained(model_name)
-        st.write("Tokenizer chargé avec succès!")
-        
         return model, tokenizer
     except Exception as e:
         st.error(f"Erreur lors du chargement du modèle: {str(e)}")
-        st.error(f"Type d'erreur: {type(e)}")
-        import traceback
-        st.error(f"Traceback: {traceback.format_exc()}")
         return None, None
 
 # Charger les métriques
