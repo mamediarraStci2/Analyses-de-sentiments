@@ -44,10 +44,10 @@ example_phrases = {
 @st.cache_resource
 def load_model():
     try:
-        # Charger le modèle depuis Hugging Face Hub
-        model_name = "mamediarraStci2/camembert-sentiment"  # Notre modèle entraîné
-        model = CamembertForSequenceClassification.from_pretrained(model_name)
-        tokenizer = CamembertTokenizer.from_pretrained(model_name)
+        # Charger le modèle local
+        model_path = os.path.join(os.path.dirname(__file__), "models")
+        model = CamembertForSequenceClassification.from_pretrained(model_path)
+        tokenizer = CamembertTokenizer.from_pretrained(model_path)
         return model, tokenizer
     except Exception as e:
         st.error(f"Erreur lors du chargement du modèle: {str(e)}")
