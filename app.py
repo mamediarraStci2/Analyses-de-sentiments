@@ -119,33 +119,33 @@ def analyze_sentiment(text):
 # Interface principale
 metrics = load_metrics()
 
-    # Création de deux colonnes pour l'interface
-    col1, col2 = st.columns([3, 1])
+# Création de deux colonnes pour l'interface
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    # Interface principale
+    st.header("Analyse de sentiment")
     
-    with col1:
-        # Interface principale
-        st.header("Analyse de sentiment")
-        
-        # Exemples pré-définis
-        st.subheader("Exemples de phrases")
+    # Exemples pré-définis
+    st.subheader("Exemples de phrases")
     sentiment_type = st.selectbox("Choisissez un type de sentiment", list(example_phrases.keys()))
     selected_example = st.selectbox("Sélectionnez une phrase exemple", example_phrases[sentiment_type])
-        
-        # Initialiser la session state pour stocker le texte
-        if 'text_input' not in st.session_state:
-            st.session_state.text_input = ""
-        
-        # Zone de texte pour l'entrée utilisateur
+    
+    # Initialiser la session state pour stocker le texte
+    if 'text_input' not in st.session_state:
+        st.session_state.text_input = ""
+    
+    # Zone de texte pour l'entrée utilisateur
     user_input = st.text_area("Ou écrivez votre propre texte:", value=selected_example, height=100)
-        
-        if st.button("Analyser"):
+    
+    if st.button("Analyser"):
         if user_input.strip():
             # Afficher un spinner pendant l'analyse
             with st.spinner("Analyse en cours..."):
                 # Obtenir les probabilités
                 results = analyze_sentiment(user_input)
-                        
-                    # Afficher les résultats
+                
+                # Afficher les résultats
                 st.markdown("### Résultats de l'analyse")
                 
                 # Créer un graphique à barres
@@ -161,19 +161,19 @@ metrics = load_metrics()
                 
                 # Personnaliser le graphique
                 ax.set_ylim(0, 1)
-                    ax.set_ylabel('Probabilité')
+                ax.set_ylabel('Probabilité')
                 ax.set_title('Distribution des sentiments')
-                    
+                
                 # Ajouter les valeurs sur les barres
-                    for bar in bars:
-                        height = bar.get_height()
+                for bar in bars:
+                    height = bar.get_height()
                     ax.text(bar.get_x() + bar.get_width()/2., height,
                            f'{height:.2%}',
                            ha='center', va='bottom')
-                    
+                
                 # Afficher le graphique
-                    st.pyplot(fig)
-                    
+                st.pyplot(fig)
+                
                 # Afficher le sentiment dominant
                 dominant_sentiment = max(results.items(), key=lambda x: x[1])[0]
                 st.markdown(f"### Sentiment dominant : **{dominant_sentiment}**")
@@ -182,26 +182,26 @@ metrics = load_metrics()
                 st.markdown("### Détail des probabilités :")
                 for sentiment, probability in results.items():
                     st.write(f"{sentiment}: {probability:.2%}")
-            else:
+        else:
             st.error("Veuillez entrer un texte à analyser.")
-    
-    with col2:
-        # Afficher les métriques si elles existent
-        if any(metrics["train_metrics"].values()) or any(metrics["val_metrics"].values()):
-            st.sidebar.header("Métriques du modèle")
-            st.sidebar.subheader("Métriques d'entraînement")
-            st.sidebar.write(f"Accuracy: {metrics['train_metrics']['eval_accuracy']:.2%}")
-            st.sidebar.write(f"F1 Score: {metrics['train_metrics']['eval_f1']:.2%}")
-            
-            st.sidebar.subheader("Métriques de validation")
-            st.sidebar.write(f"Accuracy: {metrics['val_metrics']['eval_accuracy']:.2%}")
-            st.sidebar.write(f"F1 Score: {metrics['val_metrics']['eval_f1']:.2%}")
-            
-            # Ajouter des conseils pour l'analyse
-            st.sidebar.header("Conseils d'utilisation")
-            st.sidebar.markdown("""
-            Pour de meilleurs résultats:
-            - Utilisez des phrases complètes
-            - Évitez le sarcasme ou l'ironie
-            - Plus le texte est clair, meilleure sera l'analyse
-            """)
+
+with col2:
+    # Afficher les métriques si elles existent
+    if any(metrics["train_metrics"].values()) or any(metrics["val_metrics"].values()):
+        st.sidebar.header("Métriques du modèle")
+        st.sidebar.subheader("Métriques d'entraînement")
+        st.sidebar.write(f"Accuracy: {metrics['train_metrics']['eval_accuracy']:.2%}")
+        st.sidebar.write(f"F1 Score: {metrics['train_metrics']['eval_f1']:.2%}")
+        
+        st.sidebar.subheader("Métriques de validation")
+        st.sidebar.write(f"Accuracy: {metrics['val_metrics']['eval_accuracy']:.2%}")
+        st.sidebar.write(f"F1 Score: {metrics['val_metrics']['eval_f1']:.2%}")
+        
+        # Ajouter des conseils pour l'analyse
+        st.sidebar.header("Conseils d'utilisation")
+        st.sidebar.markdown("""
+        Pour de meilleurs résultats:
+        - Utilisez des phrases complètes
+        - Évitez le sarcasme ou l'ironie
+        - Plus le texte est clair, meilleure sera l'analyse
+        """) 
