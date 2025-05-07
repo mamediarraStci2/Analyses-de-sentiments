@@ -44,11 +44,38 @@ example_phrases = {
 @st.cache_resource
 def load_model():
     try:
-        model = CamembertForSequenceClassification.from_pretrained('./sentiment_model_final')
-        tokenizer = CamembertTokenizer.from_pretrained('./sentiment_model_final')
+        # Vérifier si le dossier existe
+        model_path = './sentiment_model_final'
+        st.write(f"Tentative de chargement du modèle depuis : {os.path.abspath(model_path)}")
+        
+        if not os.path.exists(model_path):
+            st.error(f"Le dossier {model_path} n'existe pas!")
+            return None, None
+            
+        # Vérifier les fichiers nécessaires
+        required_files = ['config.json', 'pytorch_model.bin', 'tokenizer_config.json']
+        missing_files = [f for f in required_files if not os.path.exists(os.path.join(model_path, f))]
+        
+        if missing_files:
+            st.error(f"Fichiers manquants dans {model_path}: {', '.join(missing_files)}")
+            return None, None
+            
+        # Charger le modèle
+        st.write("Chargement du modèle...")
+        model = CamembertForSequenceClassification.from_pretrained(model_path)
+        st.write("Modèle chargé avec succès!")
+        
+        # Charger le tokenizer
+        st.write("Chargement du tokenizer...")
+        tokenizer = CamembertTokenizer.from_pretrained(model_path)
+        st.write("Tokenizer chargé avec succès!")
+        
         return model, tokenizer
     except Exception as e:
         st.error(f"Erreur lors du chargement du modèle: {str(e)}")
+        st.error(f"Type d'erreur: {type(e)}")
+        import traceback
+        st.error(f"Traceback: {traceback.format_exc()}")
         return None, None
 
 # Charger les métriques
@@ -63,11 +90,35 @@ def load_metrics():
             "val_metrics": {"eval_accuracy": 0, "eval_f1": 0}
         }
 
-# Interface principale
+# Charger le modèle
 model, tokenizer = load_model()
+
+if model is None or tokenizer is None:
+    st.error("Impossible de charger le modèle. L'application ne peut pas continuer.")
+    st.stop()
+
+# Fonction pour analyser le sentiment
+def analyze_sentiment(text):
+    # Tokenisation
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True)
+    
+    # Prédiction
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probabilities = torch.nn.functional.softmax(outputs.logits, dim=1)
+    
+    # Convertir en numpy pour faciliter la manipulation
+    probs = probabilities.numpy()[0]
+    
+    return {
+        "Négatif": float(probs[0]),
+        "Neutre": float(probs[1]),
+        "Positif": float(probs[2])
+    }
+
+# Interface principale
 metrics = load_metrics()
 
-if model is not None and tokenizer is not None:
     # Création de deux colonnes pour l'interface
     col1, col2 = st.columns([3, 1])
     
@@ -77,91 +128,62 @@ if model is not None and tokenizer is not None:
         
         # Exemples pré-définis
         st.subheader("Exemples de phrases")
-        example_type = st.selectbox("Choisir une catégorie:", ["Positif", "Neutre", "Négatif"])
-        selected_example = st.selectbox("Sélectionner un exemple:", example_phrases[example_type])
+    sentiment_type = st.selectbox("Choisissez un type de sentiment", list(example_phrases.keys()))
+    selected_example = st.selectbox("Sélectionnez une phrase exemple", example_phrases[sentiment_type])
         
         # Initialiser la session state pour stocker le texte
         if 'text_input' not in st.session_state:
             st.session_state.text_input = ""
         
         # Zone de texte pour l'entrée utilisateur
-        user_input = st.text_area("Entrez votre texte en français (ou utilisez un exemple):", 
-                                value=st.session_state.text_input,
-                                height=100)
-        
-        # Bouton pour utiliser l'exemple
-        if st.button("Utiliser cet exemple"):
-            st.session_state.text_input = selected_example
-            st.experimental_rerun()
+    user_input = st.text_area("Ou écrivez votre propre texte:", value=selected_example, height=100)
         
         if st.button("Analyser"):
-            if user_input:
-                try:
-                    # Prétraiter le texte
-                    inputs = tokenizer(user_input, return_tensors="pt", truncation=True, padding=True)
-                    
-                    # Faire la prédiction
-                    with torch.no_grad():
-                        outputs = model(**inputs)
-                        predictions = torch.nn.functional.softmax(outputs.logits, dim=-1)
-                        sentiment_idx = predictions.argmax().item()
+        if user_input.strip():
+            # Afficher un spinner pendant l'analyse
+            with st.spinner("Analyse en cours..."):
+                # Obtenir les probabilités
+                results = analyze_sentiment(user_input)
                         
                     # Afficher les résultats
-                    sentiment_map = {0: "Négatif", 1: "Neutre", 2: "Positif"}
-                    confidence = predictions[0][sentiment_idx].item()
-                    
-                    # Couleurs pour les résultats
-                    sentiment_colors = {
-                        "Positif": "green",
-                        "Neutre": "blue",
-                        "Négatif": "red"
-                    }
-                    sentiment_result = sentiment_map[sentiment_idx]
-                    
-                    st.subheader("Résultats")
-                    st.markdown(f"<h3 style='color: {sentiment_colors[sentiment_result]}'>Sentiment: {sentiment_result}</h3>", unsafe_allow_html=True)
-                    st.write(f"Confiance: {confidence:.2%}")
-                    
-                    # Afficher les probabilités pour chaque classe
-                    st.subheader("Probabilités par classe")
-                    
-                    # Créer un graphique de barres pour les probabilités
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    sentiments = ["Négatif", "Neutre", "Positif"]
-                    colors = ["red", "blue", "green"]
-                    probs = [float(predictions[0][i]) for i in range(3)]
-                    
-                    bars = ax.bar(sentiments, probs, color=colors)
+                st.markdown("### Résultats de l'analyse")
+                
+                # Créer un graphique à barres
+                fig, ax = plt.subplots(figsize=(10, 5))
+                sentiments = list(results.keys())
+                probabilities = list(results.values())
+                
+                # Définir les couleurs pour chaque sentiment
+                colors = ['#ff9999', '#66b3ff', '#99ff99']
+                
+                # Créer le graphique à barres
+                bars = ax.bar(sentiments, probabilities, color=colors)
+                
+                # Personnaliser le graphique
+                ax.set_ylim(0, 1)
                     ax.set_ylabel('Probabilité')
-                    ax.set_title('Probabilités par classe de sentiment')
+                ax.set_title('Distribution des sentiments')
                     
-                    # Ajouter les valeurs au-dessus des barres
+                # Ajouter les valeurs sur les barres
                     for bar in bars:
                         height = bar.get_height()
-                        ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                                f'{height:.2%}', ha='center', va='bottom')
+                    ax.text(bar.get_x() + bar.get_width()/2., height,
+                           f'{height:.2%}',
+                           ha='center', va='bottom')
                     
+                # Afficher le graphique
                     st.pyplot(fig)
                     
-                    # Explication des résultats
-                    st.subheader("Interprétation")
-                    if max(probs) < 0.96:  # Changé de 0.5 à 0.96 pour correspondre à votre demande
-                        st.warning("⚠️ La confiance est insuffisante. Le modèle n'est pas assez certain de ce résultat.")
-                        st.markdown("""
-                        **Pourquoi le modèle manque-t-il de confiance?**
-                        - Texte trop court ou ambigu
-                        - Contenu dans un registre de langue non reconnu
-                        - Expressions idiomatiques ou sarcastiques difficiles à interpréter
-                        - Le modèle nécessite un réentraînement avec plus de données
-                        """)
-                    else:
-                        st.success(f"✅ Le modèle a identifié un sentiment {sentiment_result.lower()} avec une excellente confiance.")
-                    
-                except Exception as e:
-                    st.error(f"Erreur lors de l'analyse : {str(e)}")
-                    st.info("Veuillez réessayer avec un texte plus court ou différent.")
+                # Afficher le sentiment dominant
+                dominant_sentiment = max(results.items(), key=lambda x: x[1])[0]
+                st.markdown(f"### Sentiment dominant : **{dominant_sentiment}**")
+                
+                # Afficher toutes les probabilités
+                st.markdown("### Détail des probabilités :")
+                for sentiment, probability in results.items():
+                    st.write(f"{sentiment}: {probability:.2%}")
             else:
-                st.warning("Veuillez entrer un texte à analyser.")
+            st.error("Veuillez entrer un texte à analyser.")
     
     with col2:
         # Afficher les métriques si elles existent
@@ -183,5 +205,3 @@ if model is not None and tokenizer is not None:
             - Évitez le sarcasme ou l'ironie
             - Plus le texte est clair, meilleure sera l'analyse
             """)
-else:
-    st.error("Le modèle n'a pas pu être chargé. Veuillez vérifier que le modèle est bien entraîné et que les fichiers nécessaires sont présents.") 
