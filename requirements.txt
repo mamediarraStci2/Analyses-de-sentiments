@@ -3,7 +3,7 @@ torch==2.2.0
 transformers==4.37.2
 pandas==2.2.1
 numpy==1.26.4
-scikit-learn==1.4.1
+scikit-learn==1.4.0
 deep-translator==1.11.4
 matplotlib==3.8.3
 datasets==2.16.1
