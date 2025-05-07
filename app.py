@@ -44,30 +44,18 @@ example_phrases = {
 @st.cache_resource
 def load_model():
     try:
-        # Vérifier si le dossier existe
-        model_path = './sentiment_model_final'
-        st.write(f"Tentative de chargement du modèle depuis : {os.path.abspath(model_path)}")
+        # Charger le modèle depuis Hugging Face Hub
+        model_name = "camembert-base"
+        st.write(f"Chargement du modèle depuis Hugging Face Hub: {model_name}")
         
-        if not os.path.exists(model_path):
-            st.error(f"Le dossier {model_path} n'existe pas!")
-            return None, None
-            
-        # Vérifier les fichiers nécessaires
-        required_files = ['config.json', 'pytorch_model.bin', 'tokenizer_config.json']
-        missing_files = [f for f in required_files if not os.path.exists(os.path.join(model_path, f))]
-        
-        if missing_files:
-            st.error(f"Fichiers manquants dans {model_path}: {', '.join(missing_files)}")
-            return None, None
-            
         # Charger le modèle
         st.write("Chargement du modèle...")
-        model = CamembertForSequenceClassification.from_pretrained(model_path)
+        model = CamembertForSequenceClassification.from_pretrained(model_name, num_labels=3)
         st.write("Modèle chargé avec succès!")
         
         # Charger le tokenizer
         st.write("Chargement du tokenizer...")
-        tokenizer = CamembertTokenizer.from_pretrained(model_path)
+        tokenizer = CamembertTokenizer.from_pretrained(model_name)
         st.write("Tokenizer chargé avec succès!")
         
         return model, tokenizer
